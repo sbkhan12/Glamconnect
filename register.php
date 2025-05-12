@@ -59,13 +59,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 5px;
         }
         button {
-            background-color: #4CAF50;
+            background-color:rgb(216, 31, 31);
             color: white;
             border: none;
             cursor: pointer;
         }
         button:hover {
-            background-color: #45a049;
+            background-color:rgb(211, 15, 15);
         }
         .success {
             margin-top: 10px;
