@@ -22,11 +22,8 @@ $services = $pdo->query("SELECT s.id, s.name AS service_name, s.description, s.p
 // Handle order placement
 if (isset($_GET['order'])) {
     $product_id = $_GET['order'];
-
-    // Example: for simplicity, quantity will always be 1
     $stmt = $pdo->prepare("INSERT INTO orders (customer_id, product_id, quantity) VALUES (?, ?, 1)");
     $stmt->execute([$customer_id, $product_id]);
-
     $_SESSION['message'] = "Order placed successfully!";
     header("Location: dashboard.php");
     exit;
@@ -36,16 +33,14 @@ if (isset($_GET['order'])) {
 if (isset($_POST['book_appointment'])) {
     $service_id = $_POST['service_id'];
     $appointment_date = $_POST['appointment_date'];
-
     $stmt = $pdo->prepare("INSERT INTO appointments (customer_id, service_id, appointment_date) VALUES (?, ?, ?)");
     $stmt->execute([$customer_id, $service_id, $appointment_date]);
-
     $_SESSION['message'] = "Appointment booked successfully!";
     header("Location: dashboard.php");
     exit;
 }
 
-// Fetch order history for the logged-in customer
+// Fetch order history
 $orders = $pdo->prepare("SELECT o.id, p.name AS product_name, o.quantity, o.order_date, s.name AS salon_name, o.status
                          FROM orders o
                          JOIN products p ON o.product_id = p.id
@@ -55,7 +50,7 @@ $orders = $pdo->prepare("SELECT o.id, p.name AS product_name, o.quantity, o.orde
 $orders->execute([$customer_id]);
 $order_history = $orders->fetchAll();
 
-// Fetch customer's past appointments
+// Fetch appointments
 $appointments = $pdo->prepare("SELECT a.id, s.name AS service_name, a.appointment_date, sa.name AS salon_name, a.status
                                FROM appointments a
                                JOIN services s ON a.service_id = s.id
@@ -64,6 +59,7 @@ $appointments = $pdo->prepare("SELECT a.id, s.name AS service_name, a.appointmen
                                ORDER BY a.appointment_date DESC");
 $appointments->execute([$customer_id]);
 $appointments = $appointments->fetchAll();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -79,24 +75,21 @@ $appointments = $appointments->fetchAll();
             padding: 0;
             color: #333;
         }
-
         header {
             background-color: #4CAF50;
             color: white;
             padding: 20px;
             text-align: center;
+            position: relative;
         }
-
         h2 {
             margin: 0;
         }
-
         .container {
             width: 90%;
             margin: 20px auto;
             max-width: 1200px;
         }
-
         .message {
             color: green;
             font-weight: bold;
@@ -106,27 +99,23 @@ $appointments = $appointments->fetchAll();
             border: 1px solid #d4edda;
             border-radius: 5px;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
         }
-
         th, td {
             padding: 12px;
             text-align: left;
             border: 1px solid #ddd;
         }
-
         th {
             background-color: #f2f2f2;
         }
-
         td img {
             max-width: 100px;
+            border-radius: 6px;
         }
-
         .action-btn {
             background-color: #4CAF50;
             color: white;
@@ -135,26 +124,21 @@ $appointments = $appointments->fetchAll();
             border-radius: 5px;
             font-weight: bold;
         }
-
         .action-btn:hover {
             background-color: #45a049;
         }
-
         form {
             margin-top: 10px;
         }
-
         input[type="datetime-local"], button {
             padding: 10px;
             font-size: 14px;
             margin-right: 10px;
         }
-
         input[type="datetime-local"] {
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-
         button {
             background-color: #4CAF50;
             color: white;
@@ -163,30 +147,24 @@ $appointments = $appointments->fetchAll();
             padding: 10px 20px;
             border-radius: 5px;
         }
-
         button:hover {
             background-color: #45a049;
         }
-
         .table-container {
             margin-top: 30px;
         }
-
         .table-container h3 {
             margin-top: 40px;
             color: #333;
         }
-
         @media screen and (max-width: 768px) {
             table {
                 width: 100%;
                 font-size: 14px;
             }
-
             td, th {
                 padding: 8px;
             }
-
             form {
                 display: block;
                 margin-bottom: 20px;
@@ -224,6 +202,7 @@ $appointments = $appointments->fetchAll();
         <table>
             <thead>
                 <tr>
+                    <th>Image</th>
                     <th>Product Name</th>
                     <th>Description</th>
                     <th>Price</th>
@@ -234,6 +213,13 @@ $appointments = $appointments->fetchAll();
             <tbody>
                 <?php foreach ($products as $product): ?>
                 <tr>
+                    <td>
+                        <?php if (!empty($product['image'])): ?>
+                            <img src="../uploads/<?= htmlspecialchars($product['image']) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
+                        <?php else: ?>
+                            <span>No image</span>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($product['name']) ?></td>
                     <td><?= htmlspecialchars($product['description']) ?></td>
                     <td>$<?= $product['price'] ?></td>
@@ -269,9 +255,7 @@ $appointments = $appointments->fetchAll();
                     </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="5">No orders found.</td>
-                    </tr>
+                    <tr><td colspan="5">No orders found.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

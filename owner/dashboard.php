@@ -15,9 +15,9 @@ $salon = $stmt->fetch();
 
 // Handle salon registration
 if (!$salon && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'];
-    $address = $_POST['address'];
-    $phone = $_POST['phone'];
+    $name = htmlspecialchars($_POST['name']);
+    $address = htmlspecialchars($_POST['address']);
+    $phone = htmlspecialchars($_POST['phone']);
 
     $stmt = $pdo->prepare("INSERT INTO salons (owner_id, name, address, phone) VALUES (?, ?, ?, ?)");
     $stmt->execute([$owner_id, $name, $address, $phone]);
@@ -29,54 +29,67 @@ if (!$salon && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($salon) {
     $salon_id = $salon['id'];
 
-    // Products
-    $products = $pdo->prepare("SELECT * FROM products WHERE salon_id = ?");
-    $products->execute([$salon_id]);
-    $products = $products->fetchAll();
+    // Fetch products
+    $productsStmt = $pdo->prepare("SELECT * FROM products WHERE salon_id = ?");
+    $productsStmt->execute([$salon_id]);
+    $products = $productsStmt->fetchAll();
 
+    // Add product
     if (isset($_POST['add_product'])) {
-        $product_name = $_POST['product_name'];
-        $description = $_POST['description'];
-        $price = $_POST['price'];
-        $image = $_FILES['image']['name'];
-        $image_path = 'assets/images/' . basename($image);
-        move_uploaded_file($_FILES['image']['tmp_name'], $image_path);
+        $product_name = htmlspecialchars($_POST['product_name']);
+        $description = htmlspecialchars($_POST['description']);
+        $price = floatval($_POST['price']);
 
-        $stmt = $pdo->prepare("INSERT INTO products (salon_id, name, description, price, image) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$salon_id, $product_name, $description, $price, $image_path]);
+        if ($_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $imageName = basename($_FILES['image']['name']);
+            $uploadDir = 'assets/images/';
+            $imagePath = $uploadDir . uniqid() . '_' . $imageName;
+            move_uploaded_file($_FILES['image']['tmp_name'], $imagePath);
+
+            $stmt = $pdo->prepare("INSERT INTO products (salon_id, name, description, price, image) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$salon_id, $product_name, $description, $price, $imagePath]);
+        }
+
         header('Location: dashboard.php');
         exit;
     }
 
+    // Delete product
     if (isset($_GET['delete_product'])) {
-        $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
-        $stmt->execute([$_GET['delete_product']]);
+        $stmt = $pdo->prepare("DELETE FROM products WHERE id = ? AND salon_id = ?");
+        $stmt->execute([$_GET['delete_product'], $salon_id]);
         header('Location: dashboard.php');
         exit;
     }
 
-    // Services
-    $services = $pdo->prepare("SELECT * FROM services WHERE salon_id = ?");
-    $services->execute([$salon_id]);
-    $services = $services->fetchAll();
+    // Fetch services
+    $servicesStmt = $pdo->prepare("SELECT * FROM services WHERE salon_id = ?");
+    $servicesStmt->execute([$salon_id]);
+    $services = $servicesStmt->fetchAll();
 
+    // Add service
     if (isset($_POST['add_service'])) {
+        $service_name = htmlspecialchars($_POST['service_name']);
+        $description = htmlspecialchars($_POST['description']);
+        $price = floatval($_POST['price']);
+
         $stmt = $pdo->prepare("INSERT INTO services (salon_id, name, description, price) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$salon_id, $_POST['service_name'], $_POST['description'], $_POST['price']]);
+        $stmt->execute([$salon_id, $service_name, $description, $price]);
         header('Location: dashboard.php');
         exit;
     }
 
-    // Appointments
-    $appointments = $pdo->prepare("SELECT a.id, u.name AS customer_name, s.name AS service_name, a.appointment_date, a.status
-                                   FROM appointments a
-                                   JOIN users u ON a.customer_id = u.id
-                                   JOIN services s ON a.service_id = s.id
-                                   WHERE s.salon_id = ?
-                                   ORDER BY a.appointment_date DESC");
-    $appointments->execute([$salon_id]);
-    $appointments = $appointments->fetchAll();
+    // Fetch appointments
+    $appointmentsStmt = $pdo->prepare("SELECT a.id, u.name AS customer_name, s.name AS service_name, a.appointment_date, a.status
+                                       FROM appointments a
+                                       JOIN users u ON a.customer_id = u.id
+                                       JOIN services s ON a.service_id = s.id
+                                       WHERE s.salon_id = ?
+                                       ORDER BY a.appointment_date DESC");
+    $appointmentsStmt->execute([$salon_id]);
+    $appointments = $appointmentsStmt->fetchAll();
 
+    // Approve appointment
     if (isset($_GET['approve_appointment'])) {
         $stmt = $pdo->prepare("UPDATE appointments SET status = 'approved' WHERE id = ?");
         $stmt->execute([$_GET['approve_appointment']]);
@@ -84,6 +97,7 @@ if ($salon) {
         exit;
     }
 
+    // Cancel appointment
     if (isset($_GET['cancel_appointment'])) {
         $stmt = $pdo->prepare("UPDATE appointments SET status = 'cancelled' WHERE id = ?");
         $stmt->execute([$_GET['cancel_appointment']]);
@@ -92,6 +106,7 @@ if ($salon) {
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html>
